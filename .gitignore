@@ -1,52 +1,1053 @@
-# Prerequisites
-*.d
+/**
+ * Esta aplicacion permite manejar los socios,
+ * sus consumos y las personas autorizadas por cada socio para que pueda
+ * entrar y usar los servicios del club.
+ */
 
-# Object files
-*.o
-*.ko
-*.obj
-*.elf
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <ctype.h>
 
-# Linker output
-*.ilk
-*.map
-*.exp
+#define MAX_SOCIOS 100
+#define MAX_AUTORIZADOS 1000
+#define MAX_FACTURAS 1000
+#define MAX_TIPO_SUBSCRIPCION 2
 
-# Precompiled Headers
-*.gch
-*.pch
 
-# Libraries
-*.lib
-*.a
-*.la
-*.lo
 
-# Shared objects (inc. Windows DLLs)
-*.dll
-*.so
-*.so.*
-*.dylib
 
-# Executables
-*.exe
-*.out
-*.app
-*.i*86
-*.x86_64
-*.hex
+/**
+ * Structuras de las tablas requeridas para el manejo de datos
+ */
 
-# Debug files
-*.dSYM/
-*.su
-*.idb
-*.pdb
+// Tipo de subscripcion y montos preestablecidos
+struct Subscripcion
+{
+        int codigo;
+        char nombre[10];
+        double montoInicial;
+        double maximoFondo;
+};
 
-# Kernel Module Compile Results
-*.mod*
-*.cmd
-.tmp_versions/
-modules.order
-Module.symvers
-Mkfile.old
-dkms.conf
+// Almacena datos de socios
+struct Socio{
+        int cedula;
+        int tipoSubscripcion;
+        char nombre[50];
+        char apellido[50];
+        double fondos;
+};
+
+// Almacenada los datos de las personas autorizadas por los socios
+struct PersonaAutorizada
+{
+        int cedulaSocio;
+        int cedula;
+        char nombre[50];
+        char apellido[50];
+};
+
+// Facturas por consumo de los socios
+struct Factura
+{
+        int codigo;
+        char concepto[500];
+        int cedulaSocio;
+        int cedulaAutorizado;
+        double valor;
+        int estado; // 1 pagado | 0 pendiente
+};
+
+// Iniciar datos de subscripciones
+Subscripcion tipoSubscripciones[MAX_TIPO_SUBSCRIPCION] = {{1, "Regular", 100, 1000},
+                                      {2, "VIP", 500, 5000}};
+
+// Instanciar tablas
+Socio listaSocios[MAX_SOCIOS];
+PersonaAutorizada listaAutorizados[MAX_AUTORIZADOS];
+Factura listaFacturas[MAX_FACTURAS];
+
+int afiliarSocio();
+int agregarPersonaAutorizada();
+int obtenerCedulaValida(char* cedula);
+char* obtenerCaracteresValidos(char* nombre, char* titulo);
+Subscripcion* ingresarSubscripcion(char* caracterSubscripcion);
+Subscripcion* obtenerTipoSubscripcion(int codigoSubscripcion);
+Socio* buscarSocio(int codigoSocio);
+double obtenerMonto(char* monto, char* titulo, Subscripcion* subscripcion);
+Socio * obtenerSocioIngresado(char* cedula);
+PersonaAutorizada* buscarAutorizado(int codigoAutorizado);
+bool existeAutorizadoEnSocios(char* nombreAutorizado, char *apellidoAutorizado);
+Factura* buscarFactura(int codigoFactura);
+Factura* obtenerFactura(char* codigoIngresado, int cedulaSocio);
+int  pagarFactura();
+int registrarConsumo();
+int obtenerCedula(char* cedula);
+int obtenerValorDecimal(char * monto);
+int aumentarFondos();
+int visualizarSocios();
+int visualizarFacturas();
+void imprimirAutorizado(struct PersonaAutorizada arr[], int n);
+void bubbleSort(struct PersonaAutorizada arr[], int n);
+bool compararNombre(PersonaAutorizada *a, PersonaAutorizada *b);
+void swap(struct PersonaAutorizada *a, struct PersonaAutorizada *b);
+
+int numeroSocios = 1;
+int numeroAutorizados = 1;
+int numeroFacturas = 1;
+
+int main(){
+        int opcion;
+        do
+        {
+                printf("\nMen%c:\n",163);
+                printf("1. Afiliar un socio al club\n");
+                printf("2. Agregar una persona autorizada por un socio\n");
+                printf("3. Pagar una factura\n");
+                printf("4. Registrar un consumo en la cuenta de un socio\n");
+                printf("5. Aumentar fondos de la cuenta de un socio\n");
+                printf("6. Visualizar la informaci%cn de un socio\n", 162);
+                printf("7. Visualizar las facturas que adeuda un socio\n");
+                printf("0. Salir\n");
+                printf("\n\n   Introduzca opci%cn: ", 162);
+
+                // Obtner opcion desde teclado
+                scanf("%d", &opcion);
+
+                // Menu
+                switch (opcion)
+                {
+                case 1:
+                        afiliarSocio();
+                        break;
+                case 2:
+                        agregarPersonaAutorizada();
+                        break;
+                case 3:
+                        pagarFactura();
+                        break;
+                case 4:
+                        registrarConsumo();
+                        break;
+                case 5:
+                        aumentarFondos();
+                        break;
+                case 6:
+                        visualizarSocios();
+                        break;
+                case 7:
+                        visualizarFacturas();
+                        break;
+                case 0:
+                        printf("Saliendo del programa. Hasta luego.\n");
+                        break;
+                default:
+                        printf("Opci%cn no valida. Intente de nuevo.\n", 162);
+                }
+
+                /* Fin menu */
+
+        } while (opcion != 0);
+
+        return 0;
+}
+
+bool esFlotante(char *cadena){
+        for (int i = 0; cadena[i] != '\0'; i++) {
+                if (!isdigit(cadena[i]) && cadena[i] !='.'){
+                        return false;
+                }
+        }
+        return true; // Es flotante
+}
+
+bool esNumerico(char *cadena){
+        for (int i = 0; cadena[i] != '\0'; i++) {
+                if (!isdigit(cadena[i])){
+                        return false;
+                }
+        }
+        return true;
+}
+
+bool esAlfabetico(char *cadena){
+        for (int i = 0; cadena[i] != '\0'; i++){
+                if (!isalpha(cadena[i]) && cadena[i] != ' '){
+                        return false;
+                }
+        }
+        return true;
+}
+
+// Registra los datos del socio
+int afiliarSocio(){
+        Socio socio;
+        printf("\n1. Afiliar un socio al club");
+
+        // Ingreso de cedula
+        char cedula[10];
+        printf("\nC%cdula del socio: \n", 130);
+        scanf("%s", cedula);
+        socio.cedula = obtenerCedulaValida(cedula);
+        //Si la cedula es igual a 0 sale de la opcion 
+        if(socio.cedula == 0){
+                return 0;
+        }
+
+        // Ingreso de nombre del socio
+        char nombre[50];
+        char tituloNombre[50] = "Nombre del socio";
+        printf("\n%s: \n", tituloNombre);
+        scanf("%s", nombre);
+        strcpy(socio.nombre, obtenerCaracteresValidos(nombre, tituloNombre));
+        //Si el nombre es igual a 0 sale de la opcion 
+        if(socio.nombre[0] =='0'){      
+                return 0;
+        }
+
+        // Ingreso de apellido del socio    
+        char apellido[50];
+        char tituloApellido[50] = "Apellido del socio";
+        printf("\n%s: \n", tituloApellido);
+        scanf("%s", apellido);
+        strcpy(socio.apellido, obtenerCaracteresValidos(apellido, tituloApellido));
+        //Si el apellido es igual a 0 sale de la opcion 
+        if(socio.apellido[0] =='0'){      
+                return 0;
+        }
+
+        // Ingreso del tipo de subscripcion   
+        char tipoSubscripcion[10];
+        Subscripcion* subscripcion;
+        printf("\nIngrese el tipo de subscripci%cn: \n", 162);
+        printf("\nIngrese:  \n1. Regular \n2. VIP\n");
+        scanf("%1s", tipoSubscripcion);
+        subscripcion = ingresarSubscripcion(tipoSubscripcion);
+        //Si el tipo de subscripcion es igual a 0 sale de la opcion 
+        if(subscripcion == NULL){      
+                return 0;
+        }else{
+                socio.tipoSubscripcion = subscripcion->codigo;
+        }
+
+        // Ingreso del monto   
+        char monto[16];
+        char tituloMonto[15] = "Monto inicial";
+        printf("\nIngrese el dep%csito inicial: \n", 162);
+        scanf("%s", monto);
+        socio.fondos = obtenerMonto(monto, tituloMonto, subscripcion);
+        //Si el monto ingresado es igual a 0 sale de la opcion 
+        if(socio.fondos == 0.0){      
+                return 0;
+        }
+        
+        listaSocios[numeroSocios-1] = socio;
+        numeroSocios++;
+        printf("\n**Datos del nuevo socio**");      
+        printf("\nC%cdula: %d",130, socio.cedula);
+        printf("\nNombre: %s", socio.nombre);
+        printf("\nApellido: %s", socio.apellido);
+        printf("\nTipo: %s", subscripcion->nombre);
+        printf("\nDep%csito: %f\n", 162, socio.fondos);
+        system("pause");
+        return 1;
+}
+
+
+// Registra los datos de una persona autorizada
+int agregarPersonaAutorizada(){
+        PersonaAutorizada autorizado;
+        printf("\n2. Agregar una persona autorizada al club");
+
+         // Ingreso de cedula del socio
+        char cedula[10];
+        printf("\nC%cdula del socio: \n", 130);
+        scanf("%s", cedula);
+        
+        Socio * socio = obtenerSocioIngresado(cedula);
+        
+        if(socio == NULL){
+                return 0;
+        }else{
+                if(socio->fondos <= 0){
+                        printf("\n** Fondos insuficientes para agregar nuevos autorizados \n**");  
+                        system("pause");        
+                        return 0;
+                }
+                autorizado.cedulaSocio = socio->cedula;
+                printf("\n Se va a agregar una persona autorizada por el socio:");
+                printf("\n C%cdula: %d", 130, socio->cedula);
+                printf("\n Nombre: %s %s \n", socio->nombre, socio->apellido);
+                
+        }
+
+        // Ingreso de cedula
+        char cedulaAutorizado[10];
+        printf("\nC%cdula de la persona autorizada: \n", 130);
+        scanf("%s", cedulaAutorizado);
+        autorizado.cedula = obtenerCedulaValida(cedulaAutorizado);
+
+        //Si la cedula es igual a 0 sale de la opcion 
+        if(autorizado.cedula == 0){
+                return 0;
+        }
+
+        //Valida si existe una persona autorizada con la misma cedula
+        PersonaAutorizada* personaAutorizada = buscarAutorizado(autorizado.cedula);
+        if(personaAutorizada != NULL){
+                printf("\n Ya se ha registrado una persona autorizada con la c%cdula ingresada:", 
+                        130);
+                system("pause");
+                return 0;               
+        }
+
+        // Ingreso de nombre del autorizado
+        char nombre[50];
+        char tituloNombre[50] = "Nombre del autorizado";
+        printf("\n%s: \n", tituloNombre);
+        scanf("%s", nombre);
+        strcpy(autorizado.nombre, obtenerCaracteresValidos(nombre, tituloNombre));
+        //Si el nombre es igual a 0 sale de la opcion 
+        if(autorizado.nombre[0] =='0'){      
+                return 0;
+        }
+
+        // Ingreso de apellido del autorizado    
+        char apellido[50];
+        char tituloApellido[50] = "Apellido de autorizado";
+        printf("\n%s: \n", tituloApellido);
+        scanf("%s", apellido);
+        strcpy(autorizado.apellido, obtenerCaracteresValidos(apellido, tituloApellido));
+        //Si el apellido es igual a 0 sale de la opcion 
+        if(autorizado.apellido[0] =='0'){      
+                return 0;
+        }
+        
+        //Valida nombre y apellido del autorizado en lista de socios
+        if(existeAutorizadoEnSocios(autorizado.nombre, autorizado.apellido)){
+                autorizado.cedulaSocio = socio->cedula;
+                printf("\n La persona ingresada tiene el mismo nombre que el socio:");
+                printf("\n C%cdula: %d", 130, socio->cedula);
+                printf("\n Nombre: %s %s \n", socio->nombre, socio->apellido);
+                system("pause");
+                return 0;
+        }
+
+        listaAutorizados[numeroAutorizados-1] = autorizado;
+        numeroAutorizados++;
+
+        printf("\n**Datos del nuevo Autorizado**");  
+        printf("\nC%cdula Socio: %d",130, socio->cedula); 
+        printf("\nC%cdula autorizado: %d",130, autorizado.cedula);
+        printf("\nNombre: %s", autorizado.nombre);
+        printf("\nApellido: %s\n", autorizado.apellido);
+        system("pause");
+        return 1;
+}
+
+// Pagar una factura
+int pagarFactura(){
+        Factura* factura;
+        printf("\n3. Pagar factura");
+
+         // Ingreso de cedula del socio
+        char cedula[10];
+        printf("\nC%cdula del socio: \n", 130);
+        scanf("%s", cedula);
+        
+        Socio * socio = obtenerSocioIngresado(cedula);
+        
+        if(socio == NULL){
+                return 0;
+        }else{
+                printf("\n Se va a pagar una factura del socio:");
+                printf("\n C%cdula: %d", 130, socio->cedula);
+                printf("\n Nombre: %s %s \n", socio->nombre, socio->apellido);
+                
+        }
+
+        //Ingreso del codigo de factura
+        char codigoFactura[1000];
+        printf("\nC%cdigo factura: \n", 162);
+        scanf("%999s", codigoFactura);
+        factura = obtenerFactura(codigoFactura, socio->cedula);
+
+        //Cambia el estado de la factura 1 Pendiente | 0 Pagado
+        if(socio->fondos >= factura->valor){
+                socio->fondos = socio->fondos - factura->valor;
+                factura->estado = 1;
+
+                //Se imprime la data
+                printf("\n**Pago de Factura **");  
+                printf("\nC%cdula Socio: %d",130, factura->cedulaSocio); 
+                printf("\nCodigo: %d", factura->codigo);              
+                printf("\nValor: %f", factura->valor);
+                printf("\nEstado: %s\n", "Pagado");
+                system("pause");
+        }else{  
+             printf("\n** No se pudo realizar la transaccion, fondos insuficientes **");    
+             system("pause"); 
+        }
+
+        
+        return 1;
+}
+
+
+// Registrar un consumo
+int registrarConsumo(){
+        Factura factura;
+        printf("\n4. Registrar un consumo");
+
+        // Ingreso de cedula del socio
+        char cedula[10];
+        PersonaAutorizada *autorizado = NULL;
+        Socio * socio = NULL;
+        printf("\nC%cdula del socio o autorizado: \n", 130);
+        scanf("%s", cedula);
+        int cedulaValida = obtenerCedula(cedula);
+
+        //Busca en la tabla de socios, si no encuentra busca en la tabla de autorizados
+        socio = buscarSocio(cedulaValida);
+        if(socio == NULL){
+                autorizado = buscarAutorizado(cedulaValida);
+                if(autorizado == NULL){
+                        printf("\n No existe un socio/autorizado con la c%cdula ingresada ", 130);
+                } else {
+                        socio = buscarSocio(autorizado->cedulaSocio);
+                        factura.cedulaSocio = autorizado->cedulaSocio;
+                        factura.cedulaAutorizado = autorizado->cedula;
+                        printf("\n Se va a registrar un consumo del socio:");
+                        printf("\n C%cdula Socio: %d", 130, socio->cedula);
+                        printf("\n Nombre Socio: %s %s \n", socio->nombre, socio->apellido);
+                        printf("\n C%cdula Autorizado: %d", 130, autorizado->cedula);
+                        printf("\n Nombre Autorizado: %s %s \n", autorizado->nombre, autorizado->apellido);
+                }
+        }else{
+                factura.cedulaSocio = socio->cedula;
+                factura.cedulaAutorizado = 0;
+                printf("\n Se va a registrar un consumo del socio:");
+                printf("\n C%cdula: %d", 130, socio->cedula);
+                printf("\n Nombre: %s %s \n", socio->nombre, socio->apellido);
+                
+        }
+
+        //Ingreso del concepto
+        char conceptoIngresado[500];
+        char tituloConcepto[10] = "Concepto:";
+        printf("\nConcepto: \n");
+        scanf("%999s", conceptoIngresado);
+        strcpy(factura.concepto, obtenerCaracteresValidos(conceptoIngresado, tituloConcepto));
+
+        //Ingreso del valor
+        char montoIngresado[500];
+        printf("\nValor: \n");
+        scanf("%999s", montoIngresado);
+        factura.valor = obtenerValorDecimal(montoIngresado);
+
+        if(factura.valor > socio->fondos){
+                printf("\n *** El socio no dispone de fondos suficientes para registrar el consumo");
+                system("pause");
+                return 0;
+        }else{
+                factura.codigo = numeroFacturas;
+                factura.estado= 0;
+                listaFacturas[numeroFacturas-1] = factura;
+                numeroFacturas++;
+                //Se imprime la data
+                printf("\n**Datos del consumo registrado **");
+                printf("\nC%cdula Socio: %d",130, factura.cedulaSocio); 
+                printf("\nC%cdula Autorizado: %d",130, factura.cedulaAutorizado);
+                printf("\nCodigo: %d", factura.codigo);         
+                printf("\nValor: %f", factura.valor);
+                printf("\nConcepto: %s", factura.concepto);
+                printf("\nEstado: %s \n", "PENDIENTE");
+                system("pause");
+        }
+
+        return 1;
+}
+
+
+// Aumentar fondos
+int aumentarFondos(){
+        printf("\n5. Aumentar fondos a la cuenta del socio");
+
+         // Ingreso de cedula del socio
+        char cedula[10];
+        printf("\nC%cdula del socio: \n", 130);
+        scanf("%s", cedula);
+        
+        Socio * socio = obtenerSocioIngresado(cedula);
+        
+        if(socio == NULL){
+                return 0;
+        }else{
+                printf("\n Se va a aumentar fondos a la cuenta del socio:");
+                printf("\n C%cdula: %d", 130, socio->cedula);
+                printf("\n Nombre: %s %s \n", socio->nombre, socio->apellido);
+                
+        }
+
+        //Ingreso del valor
+        char montoIngresado[1000];
+        printf("\nValor Total: \n");
+        scanf("%999s", montoIngresado);
+        double valor = obtenerValorDecimal(montoIngresado);
+        
+        //Valida que el monto ingresado con el tipo de sibscriptcion
+        Subscripcion* subscripcion = obtenerTipoSubscripcion(socio->tipoSubscripcion);
+        if(socio->fondos + valor <= subscripcion->maximoFondo ){
+                socio->fondos = socio->fondos +valor;
+                
+                //Se imprime la data
+                printf("\n**Datos del socio **");  
+                printf("\nC%cdula Socio: %d",130, socio->cedula); 
+                printf("\nNombre: %s", socio->nombre); 
+                printf("\nApellido: %s", socio->apellido);              
+                printf("\nFondos: %f", socio->fondos);
+                printf("\nTipo: %s \n", subscripcion->nombre);
+                system("pause");
+        }else{
+             printf("\n** El l%cmite de fondos para el cliente %s es: %f **\n", 161,
+                subscripcion->nombre, subscripcion->maximoFondo);       
+             system("pause"); 
+        }
+
+        
+        return 1;
+}
+
+
+// Visualizar socios
+int visualizarSocios(){
+        int opcion;
+        printf("\n6. Visualizar socios");
+        printf("\nOpciones");
+        printf("\n 1. Buscar por c%cdula", 130);
+        printf("\n 2. Listar todos");
+        printf("\n 0. Salir\n");
+
+        scanf("%d", &opcion);
+
+        do{
+                if(opcion == 1){
+                        
+                        char cedula[10];
+                        printf("\nC%cdula del socio: \n", 130);
+                        scanf("%s", cedula);
+                        Socio * socio = obtenerSocioIngresado(cedula);
+                        
+                        Subscripcion* subscripcion = obtenerTipoSubscripcion(socio->tipoSubscripcion);
+                
+                        //Se imprime la data
+                        printf("\n\t\t\t**Datos del socio **");  
+                        printf("\nC%cdula Socio: %d",130, socio->cedula); 
+                        printf("\nNombre: %s", socio->nombre); 
+                        printf("\nApellido: %s", socio->apellido);              
+                        printf("\nFondos: %f", socio->fondos);
+                        printf("\nTipo: %s", subscripcion->nombre);
+
+                        //Total facturas pendientes
+                        double totalFacturasPendientes = 0.0;
+                        for(int i = 0; i< numeroFacturas-1; i++){
+                                if(listaFacturas[i].cedulaSocio == socio->cedula 
+                                        && listaFacturas[i].estado == 0 ){
+                                        totalFacturasPendientes = 
+                                                totalFacturasPendientes + listaFacturas[i].valor;
+                                }                                 
+                        }
+                        printf("\nTotal facturas pendientes: %f", totalFacturasPendientes);
+
+                        int contador=0;
+                        printf("\n\t\t\t**Autorizados**\n"); 
+                        PersonaAutorizada autorizados [MAX_AUTORIZADOS];
+                        for(int i = 0; i< numeroAutorizados-1; i++){
+                                if(listaAutorizados[i].cedulaSocio == socio->cedula){
+                                        autorizados[contador]= listaAutorizados[i];
+                                        contador++;   
+                                }                                 
+                        }
+                        if(contador>0){
+                                bubbleSort(autorizados,contador);
+                                imprimirAutorizado(autorizados, contador);
+                        }else {
+                                printf("\nNo tiene personas autorizadas\n");
+                        }                        
+
+                        system("pause");
+
+                        printf("\nOpciones");
+                        printf("\n 1. Buscar por c%cdula", 130);
+                        printf("\n 2. Listar todos");
+                        printf("\n 0. Salir\n");
+                        scanf("%d", &opcion);
+                }else if(opcion == 2){
+                        for(int i = 0; i < numeroSocios-1; i++ ){
+                                Socio* socio = &listaSocios[i];
+                                Subscripcion* subscripcion = obtenerTipoSubscripcion(socio->tipoSubscripcion);
+                                //Se imprime la data
+                                printf("\n**Datos del socio **");  
+                                printf("\nC%cdula Socio: %d",130, socio->cedula); 
+                                printf("\nNombre: %s", socio->nombre); 
+                                printf("\nApellido: %s", socio->apellido);              
+                                printf("\nFondos: %f", socio->fondos);
+                                printf("\nTipo: %s", subscripcion->nombre);
+
+                                //Total facturas pendientes
+                                double totalFacturasPendientes = 0.0;
+                                for(int i = 0; i< numeroFacturas-1; i++){
+                                        if(listaFacturas[i].cedulaSocio == socio->cedula 
+                                                && listaFacturas[i].estado == 0 ){
+                                                totalFacturasPendientes = 
+                                                        totalFacturasPendientes + listaFacturas[i].valor;
+                                        }                                 
+                                }
+                                printf("\nTotal facturas pendientes: %f", totalFacturasPendientes);
+
+                                int contador=0;
+                                printf("\n\t\t\t**Autorizados**\n"); 
+                                PersonaAutorizada autorizados [MAX_AUTORIZADOS];
+                                for(int i = 0; i< numeroAutorizados-1; i++){
+                                        if(listaAutorizados[i].cedulaSocio == socio->cedula){
+                                                autorizados[contador]= listaAutorizados[i];
+                                                contador++;   
+                                        }                                 
+                                }
+                                if(contador>0){
+                                        bubbleSort(autorizados,contador);
+                                        imprimirAutorizado(autorizados, contador);
+                                }else {
+                                        printf("\nNo tiene personas autorizadas\n");
+                                }
+                        }
+                                                
+
+                        system("pause");
+
+                        printf("\nOpciones");
+                        printf("\n 1. Buscar por c%cdula", 130);
+                        printf("\n 2. Listar todos");
+                        printf("\n 0. Salir\n");
+                        scanf("%d", &opcion);
+                }
+
+        } while ( opcion != 0);
+        
+        return opcion;
+
+}
+
+// Visualizar facturas
+int visualizarFacturas(){
+        int opcion;
+        printf("\n7. Visualizar facturas");
+        printf("\nOpciones");
+        printf("\n 1. Buscar por c%cdula", 130);
+        printf("\n 2. Listar todos");
+        printf("\n 0. Salir\n");
+
+        scanf("%d", &opcion);
+
+        do{
+                if(opcion == 1){
+                        
+                        char cedula[10];
+                        printf("\nC%cdula del socio: \n", 130);
+                        scanf("%s", cedula);
+                        Socio * socio = obtenerSocioIngresado(cedula);
+                        if(socio==NULL){
+                                break;
+                        }
+                        //Se imprime la data
+                        printf("\n\t\t\t**Datos del socio **");  
+                        printf("\nC%cdula Socio: %d",130, socio->cedula); 
+                        printf("\tNombre: %s", socio->nombre); 
+                        printf("\tApellido: %s", socio->apellido);     
+                        printf("\n\t\t\t**Facturas**");
+                        //Total facturas pendientes
+                        double totalFacturasPendientes = 0.0;
+                        int contadorFacturas = 0;
+                        for(int i = 0; i< numeroFacturas-1; i++){
+                                if(listaFacturas[i].cedulaSocio == socio->cedula ){
+
+                                        if(listaFacturas[i].estado == 0 ){
+                                                totalFacturasPendientes = 
+                                                totalFacturasPendientes + listaFacturas[i].valor;
+                                        }
+                                        
+                                        printf("\nCodigo: %d", listaFacturas[i].codigo);         
+                                        printf("\tConcepto: %s", listaFacturas[i].concepto);
+                                        printf("\tValor: %f\n", listaFacturas[i].valor);
+                                        printf("\tEstado: %s\n", listaFacturas[i].estado == 1?"PAGADO" : "PENDIENTE");
+                                        contadorFacturas ++;
+                                }    
+                                                             
+                        }
+                        if(contadorFacturas==0){
+                                printf("\nNo tiene facturas realizadas\n");
+                        }
+                        printf("\nTotal facturas pendientes: %f\n", totalFacturasPendientes);
+                        system("pause");
+
+                        printf("\nOpciones");
+                        printf("\n 1. Buscar por c%cdula", 130);
+                        printf("\n 2. Listar todos");
+                        printf("\n 0. Salir\n");
+                        scanf("%d", &opcion);
+                }else if(opcion == 2){
+                        for(int i = 0; i < numeroSocios-1; i++ ){
+                                Socio* socio = &listaSocios[i];
+                                //Se imprime la data
+                                printf("\n**Datos del socio **");  
+                                printf("\nC%cdula Socio: %d",130, socio->cedula); 
+                                printf("\tNombre: %s", socio->nombre); 
+                                printf("\tApellido: %s", socio->apellido);      
+                                printf("\n **Facturas**");
+                                //Total facturas pendientes
+                                double totalFacturasPendientes = 0.0;
+                                int contadorFacturas = 0;
+                                for(int i = 0; i< numeroFacturas-1; i++){
+                                        if(listaFacturas[i].cedulaSocio == socio->cedula ){
+
+                                                if(listaFacturas[i].estado == 0 ){
+                                                        totalFacturasPendientes = 
+                                                        totalFacturasPendientes + listaFacturas[i].valor;
+                                                }
+                                                printf("\nCodigo: %d", listaFacturas[i].codigo);         
+                                                printf("\tConcepto: %s", listaFacturas[i].concepto);
+                                                printf("\tValor: %f", listaFacturas[i].valor);
+                                                printf("\tEstado: %s\n", listaFacturas[i].estado == 1?"PAGADO" : "PENDIENTE");
+                                                contadorFacturas ++;
+                                        }    
+                                                                
+                                }
+                                if(contadorFacturas==0){
+                                        printf("\nNo tiene facturas realizadas\n");
+                                }       
+                                printf("\nTotal facturas pendientes: %f\n", totalFacturasPendientes); 
+                        }
+
+                        system("pause");
+
+                        printf("\nOpciones");
+                        printf("\n 1. Buscar por c%cdula", 130);
+                        printf("\n 2. Listar todos");
+                        printf("\n 0. Salir\n");
+                        scanf("%d", &opcion);
+                                
+                }
+
+        } while ( opcion != 0);
+        
+        return opcion;
+
+}
+
+int obtenerCedulaValida(char* cedula){
+        int opcion = 0;
+        do{
+                if(esNumerico(cedula) && strlen(cedula)==10){   
+                        int codigoSocio = atoi(cedula);
+                        Socio* socio = buscarSocio(codigoSocio);
+
+                        if(socio==NULL){
+                            return atoi(cedula);    
+                        }else{
+                                printf("La persona ya ha sido registrada como socio del club");
+                                printf("\nIngrese:  \n1. Volver a intentar \n0. Salir\n");
+                                scanf( "%d", &opcion);
+                                if(opcion!=0){
+                                        printf("\n C%cdula: \n", 130);
+                                        scanf("%s", cedula);
+                                }
+                        }
+                        
+                }else{
+                        printf("La c%cdula debe tener 10 d%cgitos num%cricos", 130, 161,130);
+                        printf("\nIngrese:  \n1. Volver a intentar \n0. Salir\n");
+                        scanf( "%d", &opcion);
+                        if(opcion!=0){
+                                printf("\n C%cdula: \n", 130);
+                                scanf("%s", cedula);
+                        }
+                }
+
+        } while ( opcion != 0);
+        
+        return 0;
+}
+
+int obtenerCedula(char* cedula){
+        int opcion = 0;
+        do{
+                if(esNumerico(cedula) && strlen(cedula)==10){   
+                        return atoi(cedula);
+                        
+                }else{
+                        printf("La c%cdula debe tener 10 d%cgitos num%cricos", 130, 161,130);
+                        printf("\nIngrese:  \n1. Volver a intentar \n0. Salir\n");
+                        scanf( "%d", &opcion);
+                        if(opcion!=0){
+                                printf("\n C%cdula: \n", 130);
+                                scanf("%s", cedula);
+                        }
+                }
+
+        } while ( opcion != 0);
+        
+        return 0;
+}
+
+
+Socio * obtenerSocioIngresado(char* cedula){
+        int opcion = 0;
+        do{
+                if(esNumerico(cedula) && strlen(cedula)==10){   
+                        int codigoSocio = atoi(cedula);
+                        Socio* socio = buscarSocio(codigoSocio);
+
+                        if(socio!=NULL){
+                            return socio;    
+                        }else{
+                                printf("No existe un socio con la c%cdula ingresada", 130);
+                                printf("\nIngrese:  \n1. Volver a intentar \n0. Salir\n");
+                                scanf( "%d", &opcion);
+                                if(opcion!=0){
+                                        printf("\n C%cdula: \n", 130);
+                                        scanf("%s", cedula);
+                                }
+                        }
+                        
+                }else{
+                        printf("La c%cdula debe tener 10 d%cgitos num%cricos", 130, 161,130);
+                        printf("\nIngrese:  \n1. Volver a intentar \n0. Salir\n");
+                        scanf( "%d", &opcion);
+                        if(opcion!=0){
+                                printf("\n C%cdula: \n", 130);
+                                scanf("%s", cedula);
+                        }
+                }
+
+        } while ( opcion != 0);
+        
+        return NULL;
+}
+
+char* obtenerCaracteresValidos(char* nombre, char* titulo){
+        int opcion = 0;
+        do{
+                if(esAlfabetico(nombre)){   
+                        opcion = 0;
+                        return nombre;
+                }else{
+                        printf("\nEl %s no puede contener d%cgitos", titulo, 161);
+                        printf("\nIngrese:  \n1. Volver a intentar \n0. Salir\n");
+                        scanf( "%d", &opcion);
+                        if(opcion!=0){
+                                printf("\n%s: \n", titulo);
+                                scanf("%49s", nombre);
+                        }else{
+                                nombre[0] ='0';
+                        }
+                }
+
+        } while ( opcion != 0);
+        return nombre;
+}
+
+// Busca la subscripcion en la tabla tipoSubscripciones
+Subscripcion* obtenerTipoSubscripcion(int codigoSubscripcion){
+        Subscripcion *subscripcion = NULL;
+        for (int i = 0; i < 2; i++){
+                if (tipoSubscripciones[i].codigo == codigoSubscripcion)
+                {
+                        subscripcion = &tipoSubscripciones[i];
+                }
+        }
+        return subscripcion;
+}
+
+Subscripcion* ingresarSubscripcion(char* caracterSubscripcion){
+        do{
+                if(esNumerico(caracterSubscripcion)){   
+                        
+                        Subscripcion* subscripcion = obtenerTipoSubscripcion(atoi(caracterSubscripcion));
+                        
+                        if(subscripcion!=NULL){
+                                return subscripcion;        
+                        }else{
+                                printf("\nNo existe el tipo de subscripci%cn %s", 162, caracterSubscripcion);
+                                printf("\nIngrese:  \n1. Regular \n2. VIP\n0. Salir\n");
+                                scanf("%1s", caracterSubscripcion);    
+                        }
+                }else{
+                        printf("\nEl tipo de subscripci%cn no puede contener caracteres", 162);
+                        printf("\nIngrese:  \n1. Regular \n2. VIP\n0. Salir\n");
+                        scanf("%1s", caracterSubscripcion);
+        
+                }
+
+        } while (caracterSubscripcion[0] != '0');
+        return NULL;
+}
+
+double obtenerMonto(char* monto, char* titulo, Subscripcion* subscripcion){
+        int opcion = 0;
+        do{
+                if(esFlotante(monto)){
+                        double montoValidado = strtod(monto, NULL);
+
+                        if( montoValidado >= subscripcion->montoInicial && 
+                                montoValidado <= subscripcion->maximoFondo){
+                        
+                                return montoValidado;
+                        }else{
+                                printf("El %s debe ser un n%cmero entre: %f y %f ", titulo, 163 
+                                        ,subscripcion->montoInicial, subscripcion->maximoFondo );
+                                printf("\nIngrese:  \n1. Volver a intentar \n0. Salir\n");
+                                scanf( "%d", &opcion);
+                                if(opcion!=0){
+                                        printf("\n %s: \n", titulo);
+                                        scanf("%s", monto);
+                                }   
+                        }
+                }else{
+                        printf("El %s debe ser un n%cmero decimal", titulo, 163);
+                        printf("\nIngrese:  \n1. Volver a intentar \n0. Salir\n");
+                        scanf( "%d", &opcion);
+                        if(opcion!=0){
+                                printf("\n %s: \n", titulo);
+                                scanf("%s", monto);
+                        }
+                }
+
+        } while ( opcion != 0);
+        
+        return 0.0;
+}
+
+
+Socio* buscarSocio(int codigoSocio){
+    Socio *socio = NULL;
+        for (int i = 0; i < numeroSocios-1; i++){
+                if (listaSocios[i].cedula == codigoSocio){
+                        socio = &listaSocios[i];
+                }
+        }
+        return socio;    
+}
+
+bool existeAutorizadoEnSocios(char* nombreAutorizado, char *apellidoAutorizado){
+        
+        for (int i = 0; i < numeroSocios-1; i++){
+              int compararNom = strcmp(listaSocios[i].nombre,nombreAutorizado);  
+              int compararApellido = strcmp(listaSocios[i].apellido,apellidoAutorizado);
+                if ( compararNom == 0 && compararApellido == 0) {
+                        return true;
+                }
+        }
+        return false;    
+}
+
+PersonaAutorizada* buscarAutorizado(int codigoAutorizado){
+    PersonaAutorizada *autorizado = NULL;
+        for (int i = 0; i < numeroAutorizados-1; i++){
+                if (listaAutorizados[i].cedula == codigoAutorizado)
+                {
+                        autorizado = &listaAutorizados[i];
+                }
+        }
+        return autorizado;    
+}
+
+Factura* buscarFactura(int codigoFactura){
+    Factura *factura = NULL;
+        for (int i = 0; i < numeroFacturas-1; i++){
+                if (listaFacturas[i].codigo == codigoFactura){
+                        factura = &listaFacturas[i];
+                }
+        }
+        return factura;    
+}
+
+Factura* obtenerFactura(char* codigoIngresado, int cedulaSocio){
+        int codigoFactura;
+        do{
+                if(esNumerico(codigoIngresado)){   
+                        codigoFactura = atoi(codigoIngresado);
+                        Factura* factura = buscarFactura(codigoFactura);
+                        
+                        if(factura!=NULL){
+                                if(factura->cedulaSocio == cedulaSocio){
+                                        return factura; 
+                                }else{
+                                        printf("\nLa factura no pertenece al socio ingresado");
+                                        printf("\nIngrese el c%cdigo de factura:", 162);
+                                        printf("\nPara salir digite 0\n");
+                                        scanf("%999s", codigoIngresado);    
+                                }
+                        }else{
+                                printf("\nNo existe la factura con el c%cdigo ingresado ", 162);
+                                printf("\nIngrese el c%cdigo de factura:\n", 162);
+                                printf("\n0. Salir");
+                                scanf("%999s", codigoIngresado);    
+                        }
+                }else{
+                        printf("\nEl c%cdigo de factura no puede contener caracteres", 162);
+                        printf("\nIngrese el c%cdigo de factura:\n", 162);
+                        printf("\n0. Salir");
+                        scanf("%999s", codigoIngresado);
+        
+                }
+
+        } while (codigoIngresado != "0");
+        return NULL;
+}
+
+int obtenerValorDecimal(char* montoIngresado){
+        int opcion = 0;
+        do{
+                if(esFlotante(montoIngresado)){   
+                        return strtod(montoIngresado, NULL);                     
+                }else{
+                        printf("El valor debe ser un n%cmero decimal", 163);
+                        printf("\nIngrese:  \n1. Volver a intentar \n0. Salir\n");
+                        scanf( "%d", &opcion);
+                        if(opcion!=0){
+                                printf("\n Ingrese el valor total: \n");
+                                scanf("%s", montoIngresado);
+                        }
+                }
+        } while ( opcion != 0);
+        
+        return 0.0;
+
+}
+
+
+void swap(struct PersonaAutorizada *a, struct PersonaAutorizada *b) {
+    struct PersonaAutorizada temp = *a;
+    *a = *b;
+    *b = temp;
+}
+
+
+
+void bubbleSort(struct PersonaAutorizada arr[], int indiceMaximo) {
+    for (int i = 0; i < indiceMaximo - 1; i++) {
+        for (int j = 0; j < indiceMaximo - i - 1; j++) {
+            if (strcmp(arr[j].nombre, arr[j + 1].nombre) > 0) {
+                swap(&arr[j], &arr[j + 1]);
+            }
+        }
+    }
+}
+
+void imprimirAutorizado(struct PersonaAutorizada arr[], int n) {
+    for (int i = 0; i < n; i++) {
+        printf("C%cdula: %d, Nombre: %s, Apellido: %s,\n", 130,
+               arr[i].cedula, arr[i].nombre, arr[i].apellido);
+    }
+}
